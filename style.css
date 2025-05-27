@@ -449,3 +449,24 @@ body {
     font-size: 1rem;
     margin-bottom: 12px;
 }
+.date-time-section {
+    margin: 20px 0;
+    padding: 10px;
+    background-color: #f0f8ff; /* רקע בהיר ונעים */
+    border-radius: 8px;
+    text-align: right; /* כי זה RTL */
+    font-family: Arial, sans-serif;
+    color: #333;
+    direction: rtl;
+}
+
+.date-time-section h2 {
+    margin: 0 0 6px 0;
+    font-size: 1.3rem;
+    color: #0055aa;
+}
+
+.date-time-section p {
+    margin: 0;
+    font-size: 1.1rem;
+}
