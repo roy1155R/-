@@ -2,6 +2,9 @@
 const STORAGE_KEY = 'roei_birthday_responses';
 const ADMIN_PASSWORD = 'roei123';
 
+// Webhook URL דיסקורד שלך — החלף לכתובת שלך!
+const DISCORD_WEBHOOK_URL = 'https://ptb.discord.com/api/webhooks/1376911701152370750/la8sMhwx5FJcBZEZlyW93L6-Ec2VHLm_bzzqPfs_AWEz4x7YR2nfKKahuymFT86pV27Z';
+
 // Global variables
 let responses = [];
 let isAdminMode = false;
@@ -38,54 +41,41 @@ function saveResponses() {
 
 // Setup all event listeners
 function setupEventListeners() {
-    // Handle radio button selection visual feedback
     document.querySelectorAll('.radio-option').forEach(option => {
         option.addEventListener('click', function() {
-            // Remove selected class from all options
             document.querySelectorAll('.radio-option').forEach(opt => {
                 opt.classList.remove('selected');
             });
-            
-            // Add selected class to clicked option
             this.classList.add('selected');
-            
-            // Check the radio button
             const radioInput = this.querySelector('input[type="radio"]');
             radioInput.checked = true;
         });
     });
 
-    // Handle form submission
     document.getElementById('rsvpForm').addEventListener('submit', handleFormSubmit);
 
-    // Admin button
     document.getElementById('adminBtn').addEventListener('click', showAdminLogin);
 
-    // Admin login
     document.getElementById('loginBtn').addEventListener('click', handleAdminLogin);
     document.getElementById('backBtn').addEventListener('click', showUserForm);
 
-    // Admin password enter key
     document.getElementById('adminPassword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             handleAdminLogin();
         }
     });
 
-    // Admin logout
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
-    // Download button
     document.getElementById('downloadBtn').addEventListener('click', downloadJSON);
 
-    // Clear all button
     document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
 }
 
 // Handle form submission
 function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     const formData = {
         firstName: document.getElementById('firstName').value.trim(),
         lastName: document.getElementById('lastName').value.trim(),
@@ -100,39 +90,33 @@ function handleFormSubmit(e) {
         })
     };
 
-    // Validate form data
     if (!validateFormData(formData)) {
         return;
     }
 
-    // Check if person already responded
-    const existingIndex = responses.findIndex(r => 
-        r.firstName.toLowerCase() === formData.firstName.toLowerCase() && 
+    const existingIndex = responses.findIndex(r =>
+        r.firstName.toLowerCase() === formData.firstName.toLowerCase() &&
         r.lastName.toLowerCase() === formData.lastName.toLowerCase()
     );
 
     if (existingIndex !== -1) {
         if (confirm('כבר נרשמת למסיבה. האם תרצה לעדכן את הפרטים?')) {
-            // Update existing response
             responses[existingIndex] = formData;
         } else {
             return;
         }
     } else {
-        // Add new response
         responses.push(formData);
     }
 
-    // Save to localStorage
     saveResponses();
 
-    // Show success message
-    showSuccessMessage();
+    // שולחים הודעה ל-Discord דרך ה-Webhook
+    sendDiscordWebhook(formData);
 
-    // Reset form
+    showSuccessMessage();
     resetForm();
 
-    // Log for development
     console.log('Response saved:', formData);
 }
 
@@ -143,7 +127,6 @@ function validateFormData(formData) {
         return false;
     }
 
-    // Check if phone number is valid (basic validation)
     const phoneRegex = /^[\d\-\+\(\)\s]+$/;
     if (formData.phone.length < 9 || !phoneRegex.test(formData.phone)) {
         alert('אנא הכנס מספר טלפון תקין');
@@ -153,12 +136,46 @@ function validateFormData(formData) {
     return true;
 }
 
+// שולחת הודעה ל-Webhook דיסקורד
+function sendDiscordWebhook(formData) {
+    const embed = {
+        title: 'רישום חדש למסיבת יום הולדת!',
+        color: 0x0099ff,
+        fields: [
+            { name: 'שם', value: `${formData.firstName} ${formData.lastName}`, inline: true },
+            { name: 'טלפון', value: formData.phone, inline: true },
+            { name: 'האם מגיע', value: formData.attendance === 'yes' ? 'כן 🎉' : 'לא 😔', inline: true },
+            { name: 'נרשם בתאריך', value: formData.timestamp, inline: false }
+        ],
+        timestamp: new Date().toISOString(),
+        footer: {
+            text: 'רישום יום הולדת - רועי'
+        }
+    };
+
+    fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            embeds: [embed]
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            console.error('Webhook error:', response.statusText);
+        }
+    })
+    .catch(error => {
+        console.error('Webhook fetch error:', error);
+    });
+}
 // Show success message
 function showSuccessMessage() {
     const successMessage = document.getElementById('successMessage');
     successMessage.style.display = 'block';
-    
-    // Hide success message after 3 seconds
+
     setTimeout(() => {
         successMessage.style.display = 'none';
     }, 3000);
@@ -199,7 +216,7 @@ function showAdminPanel() {
 // Admin login handling
 function handleAdminLogin() {
     const password = document.getElementById('adminPassword').value;
-    
+
     if (password === ADMIN_PASSWORD) {
         document.getElementById('adminPassword').value = '';
         hideLoginError();
@@ -244,13 +261,12 @@ function updateStats() {
 // Display responses in admin panel
 function displayResponses() {
     const responsesList = document.getElementById('responsesList');
-    
+
     if (responses.length === 0) {
         responsesList.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">אין אישורי הגעה עדיין</p>';
         return;
     }
 
-    // Sort responses by timestamp (newest first)
     const sortedResponses = [...responses].sort((a, b) => {
         return new Date(b.timestamp) - new Date(a.timestamp);
     });
@@ -258,7 +274,7 @@ function displayResponses() {
     responsesList.innerHTML = sortedResponses.map(response => {
         const attendanceText = response.attendance === 'yes' ? 'מגיע 🎉' : 'לא מגיע 😔';
         const attendanceClass = response.attendance === 'yes' ? 'attendance-yes' : 'attendance-no';
-        
+
         return `
             <div class="response-item ${attendanceClass}">
                 <div class="response-name">${response.firstName} ${response.lastName}</div>
@@ -287,8 +303,6 @@ function downloadJSON() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // Clean up the URL object
     URL.revokeObjectURL(url);
 }
 
